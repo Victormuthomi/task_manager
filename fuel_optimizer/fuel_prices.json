@@ -1,0 +1,21 @@
+[
+  {
+    "name": "Station A",
+    "lat": 40.7128,
+    "lon": -74.0060,
+    "price": 3.50
+  },
+  {
+    "name": "Station B",
+    "lat": 39.9526,
+    "lon": -75.1652,
+    "price": 3.45
+  },
+  {
+    "name": "Station C",
+    "lat": 38.8977,
+    "lon": -77.0365,
+    "price": 3.40
+  }
+]
+
