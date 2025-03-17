@@ -5,31 +5,48 @@ import (
 	"task_manager/models"
 )
 
-// CreateTask inserts a new task into the database
+// GetAllTasks retrieves tasks with optional filtering and pagination
+func GetAllTasks(completed int, page int, pageSize int) ([]models.Task, error) {
+	var tasks []models.Task
+	offset := (page - 1) * pageSize
+	query := database.DB.Model(&models.Task{})
+
+	// Apply the filter for completed status
+	if completed != -1 {
+		query = query.Where("completed = ?", completed)
+	}
+
+	// Fetch tasks with pagination
+	err := query.Offset(offset).Limit(pageSize).Find(&tasks).Error
+	return tasks, err
+}
+
+// CreateTask adds a new task to the database
 func CreateTask(task *models.Task) error {
 	return database.DB.Create(task).Error
 }
 
-// GetTasks retrieves all tasks from the database
-func GetTasks() ([]models.Task, error) {
-	var tasks []models.Task
-	err := database.DB.Find(&tasks).Error
-	return tasks, err
+// UpdateTask updates an existing task's details
+func UpdateTask(id uint, task *models.Task) (models.Task, error) {
+	var updatedTask models.Task
+	err := database.DB.Model(&models.Task{}).Where("id = ?", id).Updates(task).First(&updatedTask).Error
+	if err != nil {
+		return updatedTask, err
+	}
+	return updatedTask, nil
 }
 
-// GetTaskByID retrieves a specific task by ID
-func GetTaskByID(id uint) (models.Task, error) {
+// MarkTaskAsCompleted updates the task's status to completed
+func MarkTaskAsCompleted(id uint) error {
 	var task models.Task
-	err := database.DB.First(&task, id).Error
-	return task, err
+	if err := database.DB.First(&task, id).Error; err != nil {
+		return err
+	}
+	task.Completed = true
+	return database.DB.Save(&task).Error
 }
 
-// UpdateTask modifies an existing task
-func UpdateTask(task *models.Task) error {
-	return database.DB.Save(task).Error
-}
-
-// DeleteTask removes a task from the database
+// DeleteTask deletes a task from the database
 func DeleteTask(id uint) error {
 	return database.DB.Delete(&models.Task{}, id).Error
 }

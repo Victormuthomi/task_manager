@@ -6,12 +6,44 @@ import (
 	"task_manager/repository"
 	"net/http"
 	"strconv"
-
-	"github.com/gorilla/mux"
 )
 
-// CreateTaskHandler handles task creation
-func CreateTaskHandler(w http.ResponseWriter, r *http.Request) {
+// GetTasks retrieves all tasks, optionally filtered by completion status
+func GetTasks(w http.ResponseWriter, r *http.Request) {
+	completedParam := r.URL.Query().Get("completed")
+	pageParam := r.URL.Query().Get("page")
+	pageSizeParam := r.URL.Query().Get("page_size")
+
+	var completed int
+	if completedParam == "true" {
+		completed = 1
+	} else if completedParam == "false" {
+		completed = 0
+	} else {
+		completed = -1
+	}
+
+	page, err := strconv.Atoi(pageParam)
+	if err != nil {
+		page = 1
+	}
+
+	pageSize, err := strconv.Atoi(pageSizeParam)
+	if err != nil {
+		pageSize = 10
+	}
+
+	tasks, err := repository.GetAllTasks(completed, page, pageSize)
+	if err != nil {
+		http.Error(w, "Failed to fetch tasks", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(tasks)
+}
+
+// CreateTask adds a new task
+func CreateTask(w http.ResponseWriter, r *http.Request) {
 	var task models.Task
 	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
@@ -25,39 +57,10 @@ func CreateTaskHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(task)
 }
 
-// GetTasksHandler retrieves all tasks
-func GetTasksHandler(w http.ResponseWriter, r *http.Request) {
-	tasks, err := repository.GetTasks()
-	if err != nil {
-		http.Error(w, "Failed to fetch tasks", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tasks)
-}
-
-// GetTaskByIDHandler retrieves a task by ID
-func GetTaskByIDHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
-	if err != nil {
-		http.Error(w, "Invalid task ID", http.StatusBadRequest)
-		return
-	}
-
-	task, err := repository.GetTaskByID(uint(id))
-	if err != nil {
-		http.Error(w, "Task not found", http.StatusNotFound)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(task)
-}
-
-// UpdateTaskHandler updates an existing task
-func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
+// UpdateTask updates an existing task
+func UpdateTask(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	taskID, err := strconv.Atoi(id)
 	if err != nil {
 		http.Error(w, "Invalid task ID", http.StatusBadRequest)
 		return
@@ -69,31 +72,47 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	task.ID = uint(id)
-	if err := repository.UpdateTask(&task); err != nil {
+	updatedTask, err := repository.UpdateTask(uint(taskID), &task) // Capture both returned values
+	if err != nil {
 		http.Error(w, "Failed to update task", http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(task)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(updatedTask) // Return the updated task
 }
 
-// DeleteTaskHandler deletes a task by ID
-func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
+// MarkTaskAsCompleted marks a task as completed
+func MarkTaskAsCompleted(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	taskID, err := strconv.Atoi(id)
 	if err != nil {
 		http.Error(w, "Invalid task ID", http.StatusBadRequest)
 		return
 	}
 
-	if err := repository.DeleteTask(uint(id)); err != nil {
-		http.Error(w, "Failed to delete task", http.StatusInternalServerError)
+	err = repository.MarkTaskAsCompleted(uint(taskID))
+	if err != nil {
+		http.Error(w, "Failed to mark task as completed", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+// DeleteTask marks a task as deleted
+func DeleteTask(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	taskID, err := strconv.Atoi(id)
+	if err != nil {
+		http.Error(w, "Invalid task ID", http.StatusBadRequest)
 		return
 	}
 
+	err = repository.DeleteTask(uint(taskID))
+	if err != nil {
+		http.Error(w, "Failed to delete task", http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Task deleted successfully"})
 }
 

@@ -2,28 +2,21 @@ package routes
 
 import (
 	"task_manager/handlers"
-	"net/http"
-
+	"task_manager/middleware"
 	"github.com/gorilla/mux"
 )
 
-// RegisterRoutes sets up all API routes
-func RegisterRoutes() *mux.Router {
-	router := mux.NewRouter()
+func RegisterRoutes(r *mux.Router) {
+	r.HandleFunc("/register", handlers.RegisterUser).Methods("POST")
+	r.HandleFunc("/login", handlers.LoginUser).Methods("POST")
 
-	// Task Routes
-	router.HandleFunc("/tasks", handlers.CreateTaskHandler).Methods("POST")
-	router.HandleFunc("/tasks", handlers.GetTasksHandler).Methods("GET")
-	router.HandleFunc("/tasks/{id}", handlers.GetTaskByIDHandler).Methods("GET")
-	router.HandleFunc("/tasks/{id}", handlers.UpdateTaskHandler).Methods("PUT")
-	router.HandleFunc("/tasks/{id}", handlers.DeleteTaskHandler).Methods("DELETE")
-
-	// Health Check Route
-	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Server is running"))
-	}).Methods("GET")
-
-	return router
+	// Task routes
+	taskRoutes := r.PathPrefix("/tasks").Subrouter()
+	taskRoutes.Use(middleware.AuthMiddleware)
+	taskRoutes.HandleFunc("", handlers.GetTasks).Methods("GET")
+	taskRoutes.HandleFunc("", handlers.CreateTask).Methods("POST")
+	taskRoutes.HandleFunc("/{id:[0-9]+}", handlers.UpdateTask).Methods("PUT")
+	taskRoutes.HandleFunc("/{id:[0-9]+}/complete", handlers.MarkTaskAsCompleted).Methods("PATCH")
+	taskRoutes.HandleFunc("/{id:[0-9]+}/delete", handlers.DeleteTask).Methods("DELETE")
 }
 

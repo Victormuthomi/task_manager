@@ -1,12 +1,16 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"time"
+)
 
-// Task represents a task in the system
 type Task struct {
-	gorm.Model
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Completed   bool   `json:"completed"`
+	ID          uint      `json:"id" gorm:"primaryKey"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Completed   bool      `json:"completed"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	DeletedAt   *time.Time `json:"deleted_at,omitempty" gorm:"index"`
 }
 
